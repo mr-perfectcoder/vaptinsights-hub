@@ -1,7 +1,9 @@
 "use client";
 
 import React, { useState } from "react";
+import { useFormik } from "formik";
 import { useDPDPStartScan, ScanStatusResponse } from "@/hooks/query-hooks/dpdp.query";
+import { confirmationScanSchema, normalizeScanUrl } from "@/lib/validation/dpdp-scan.schema";
 import { DpdpIcon } from "./dpdp-icon";
 
 interface DpdpScanFormProps {
@@ -10,65 +12,91 @@ interface DpdpScanFormProps {
 
 export function DpdpScanForm({ scanRecord }: DpdpScanFormProps) {
   const startScanMutation = useDPDPStartScan();
+  const [errorMessage, setErrorMessage] = useState("");
 
-  const [privacyPolicy, setPrivacyPolicy] = useState(
+  const initialPrivacy = 
     scanRecord.confirmed_privacy_policy_url || 
     scanRecord.discovered_privacy_policy_url || 
     scanRecord.content?.documents?.confirmed_privacy_policy_url || 
-    scanRecord.content?.discovered_privacy_policy_url || ""
-  );
-  const [termsUrl, setTermsUrl] = useState(
+    scanRecord.content?.discovered_privacy_policy_url || "";
+
+  const initialTerms = 
     scanRecord.confirmed_terms_url || 
     scanRecord.discovered_terms_url || 
     scanRecord.content?.documents?.confirmed_terms_url || 
-    scanRecord.content?.discovered_terms_url || ""
-  );
-  const [sitemapUrl, setSitemapUrl] = useState(
+    scanRecord.content?.discovered_terms_url || "";
+
+  const initialSitemap = 
     scanRecord.confirmed_sitemap_url || 
     scanRecord.discovered_sitemap_url || 
     scanRecord.content?.documents?.confirmed_sitemap_url || 
-    scanRecord.content?.discovered_sitemap_url || ""
-  );
-  const [trustSecurityUrl, setTrustSecurityUrl] = useState(
+    scanRecord.content?.discovered_sitemap_url || "";
+
+  const initialTrust = 
     scanRecord.confirmed_trust_security_url || 
     scanRecord.discovered_trust_security_url || 
     scanRecord.content?.documents?.confirmed_trust_security_url || 
-    scanRecord.content?.discovered_trust_security_url || ""
-  );
-  
-  const [appType, setAppType] = useState(scanRecord.app_type || "SaaS");
-  const [dataRetentionPeriod, setDataRetentionPeriod] = useState(scanRecord.data_retention_period || "12 Months (1 Year)");
-  const [processesChildrenData, setProcessesChildrenData] = useState(scanRecord.processes_children_data || false);
-  const [processesSensitiveData, setProcessesSensitiveData] = useState(scanRecord.processes_sensitive_data || false);
-  const [hasLoginOrUserManagement, setHasLoginOrUserManagement] = useState(scanRecord.has_login_or_user_management || false);
-  const [loginUrl, setLoginUrl] = useState(scanRecord.confirmed_login_url || "");
-  const [registerUrl, setRegisterUrl] = useState(scanRecord.confirmed_register_url || "");
-  const [errorMessage, setErrorMessage] = useState("");
+    scanRecord.content?.discovered_trust_security_url || "";
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrorMessage("");
+  const formik = useFormik({
+    initialValues: {
+      confirmed_privacy_policy_url: initialPrivacy,
+      confirmed_terms_url: initialTerms,
+      confirmed_sitemap_url: initialSitemap,
+      confirmed_trust_security_url: initialTrust,
+      confirmed_login_url: scanRecord.confirmed_login_url || "",
+      confirmed_register_url: scanRecord.confirmed_register_url || "",
+      app_type: scanRecord.app_type || "SaaS",
+      data_retention_period: scanRecord.data_retention_period || "12 Months (1 Year)",
+      processes_children_data: scanRecord.processes_children_data || false,
+      processes_sensitive_data: scanRecord.processes_sensitive_data || false,
+      has_login_or_user_management: scanRecord.has_login_or_user_management || false,
+    },
+    validationSchema: confirmationScanSchema,
+    validateOnBlur: true,
+    validateOnChange: false,
+    onSubmit: (values, { setSubmitting }) => {
+      setErrorMessage("");
 
-    startScanMutation.mutate({
-      scan_id: scanRecord.scan_id,
-      target_url: scanRecord.target_url || scanRecord.domain,
-      confirmed_privacy_policy_url: privacyPolicy,
-      confirmed_terms_url: termsUrl,
-      confirmed_sitemap_url: sitemapUrl,
-      confirmed_trust_security_url: trustSecurityUrl,
-      confirmed_login_url: loginUrl,
-      confirmed_register_url: registerUrl,
-      app_type: appType,
-      data_retention_period: dataRetentionPeriod,
-      processes_children_data: processesChildrenData,
-      processes_sensitive_data: processesSensitiveData,
-      has_login_or_user_management: hasLoginOrUserManagement,
-    }, {
-      onError: (err) => {
-        setErrorMessage(err.message || "Failed to trigger compliance scan.");
-      }
-    });
-  };
+      startScanMutation.mutate(
+        {
+          scan_id: scanRecord.scan_id,
+          target_url: scanRecord.target_url || scanRecord.domain,
+          confirmed_privacy_policy_url: values.confirmed_privacy_policy_url
+            ? normalizeScanUrl(values.confirmed_privacy_policy_url, "full")
+            : "",
+          confirmed_terms_url: values.confirmed_terms_url
+            ? normalizeScanUrl(values.confirmed_terms_url, "full")
+            : "",
+          confirmed_sitemap_url: values.confirmed_sitemap_url
+            ? normalizeScanUrl(values.confirmed_sitemap_url, "full")
+            : "",
+          confirmed_trust_security_url: values.confirmed_trust_security_url
+            ? normalizeScanUrl(values.confirmed_trust_security_url, "full")
+            : "",
+          confirmed_login_url: values.confirmed_login_url
+            ? normalizeScanUrl(values.confirmed_login_url, "full")
+            : "",
+          confirmed_register_url: values.confirmed_register_url
+            ? normalizeScanUrl(values.confirmed_register_url, "full")
+            : "",
+          app_type: values.app_type,
+          data_retention_period: values.data_retention_period,
+          processes_children_data: values.processes_children_data,
+          processes_sensitive_data: values.processes_sensitive_data,
+          has_login_or_user_management: values.has_login_or_user_management,
+        },
+        {
+          onError: (err) => {
+            setSubmitting(false);
+            setErrorMessage(err.message || "Failed to trigger compliance scan.");
+          },
+        }
+      );
+    },
+  });
+
+  const isProcessing = formik.isSubmitting || startScanMutation.isPending;
 
   return (
     <div className="mx-auto max-w-3xl rounded-3xl border border-white/12 bg-[#0b2130]/90 p-6 shadow-2xl shadow-black/35 sm:p-8">
@@ -84,51 +112,106 @@ export function DpdpScanForm({ scanRecord }: DpdpScanFormProps) {
         </p>
       </div>
 
-      <form onSubmit={handleSubmit} className="mt-6 space-y-6">
+      <form onSubmit={formik.handleSubmit} className="mt-6 space-y-6">
         {/* URL Targets Section */}
         <div className="space-y-4">
-          <h3 className="text-sm font-semibold tracking-wider text-cyan-300 uppercase">1. Web Assets & Documents</h3>
+          <h3 className="text-sm font-semibold tracking-wider text-cyan-300 uppercase">1. Web Assets &amp; Documents</h3>
           
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-1.5">Privacy Policy URL</label>
+              <label htmlFor="confirmed_privacy_policy_url" className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-1.5">
+                Privacy Policy URL
+              </label>
               <input
+                id="confirmed_privacy_policy_url"
+                name="confirmed_privacy_policy_url"
                 type="text"
-                value={privacyPolicy}
-                onChange={(e) => setPrivacyPolicy(e.target.value)}
-                placeholder="https://..."
-                className="w-full h-11 px-3 text-sm rounded-lg border border-white/10 bg-[#061420] text-slate-200 outline-none focus:border-cyan-500 transition"
+                value={formik.values.confirmed_privacy_policy_url}
+                onChange={formik.handleChange}
+                onBlur={formik.handleBlur}
+                aria-invalid={Boolean(formik.touched.confirmed_privacy_policy_url && formik.errors.confirmed_privacy_policy_url)}
+                placeholder="https://example.com/privacy"
+                className={`w-full h-11 px-3 text-sm rounded-lg border bg-[#061420] text-slate-200 outline-none transition ${
+                  formik.touched.confirmed_privacy_policy_url && formik.errors.confirmed_privacy_policy_url
+                    ? "border-rose-500/60 focus:border-rose-500"
+                    : "border-white/10 focus:border-cyan-500"
+                }`}
               />
+              {formik.touched.confirmed_privacy_policy_url && formik.errors.confirmed_privacy_policy_url && (
+                <p className="mt-1 text-xs text-rose-400 font-medium">⚠️ {String(formik.errors.confirmed_privacy_policy_url)}</p>
+              )}
             </div>
+
             <div>
-              <label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-1.5">Terms of Service URL</label>
+              <label htmlFor="confirmed_terms_url" className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-1.5">
+                Terms of Service URL
+              </label>
               <input
+                id="confirmed_terms_url"
+                name="confirmed_terms_url"
                 type="text"
-                value={termsUrl}
-                onChange={(e) => setTermsUrl(e.target.value)}
-                placeholder="https://..."
-                className="w-full h-11 px-3 text-sm rounded-lg border border-white/10 bg-[#061420] text-slate-200 outline-none focus:border-cyan-500 transition"
+                value={formik.values.confirmed_terms_url}
+                onChange={formik.handleChange}
+                onBlur={formik.handleBlur}
+                aria-invalid={Boolean(formik.touched.confirmed_terms_url && formik.errors.confirmed_terms_url)}
+                placeholder="https://example.com/terms"
+                className={`w-full h-11 px-3 text-sm rounded-lg border bg-[#061420] text-slate-200 outline-none transition ${
+                  formik.touched.confirmed_terms_url && formik.errors.confirmed_terms_url
+                    ? "border-rose-500/60 focus:border-rose-500"
+                    : "border-white/10 focus:border-cyan-500"
+                }`}
               />
+              {formik.touched.confirmed_terms_url && formik.errors.confirmed_terms_url && (
+                <p className="mt-1 text-xs text-rose-400 font-medium">⚠️ {String(formik.errors.confirmed_terms_url)}</p>
+              )}
             </div>
+
             <div>
-              <label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-1.5">Sitemap URL (Optional)</label>
+              <label htmlFor="confirmed_sitemap_url" className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-1.5">
+                Sitemap URL (Optional)
+              </label>
               <input
+                id="confirmed_sitemap_url"
+                name="confirmed_sitemap_url"
                 type="text"
-                value={sitemapUrl}
-                onChange={(e) => setSitemapUrl(e.target.value)}
-                placeholder="https://..."
-                className="w-full h-11 px-3 text-sm rounded-lg border border-white/10 bg-[#061420] text-slate-200 outline-none focus:border-cyan-500 transition"
+                value={formik.values.confirmed_sitemap_url}
+                onChange={formik.handleChange}
+                onBlur={formik.handleBlur}
+                aria-invalid={Boolean(formik.touched.confirmed_sitemap_url && formik.errors.confirmed_sitemap_url)}
+                placeholder="https://example.com/sitemap.xml"
+                className={`w-full h-11 px-3 text-sm rounded-lg border bg-[#061420] text-slate-200 outline-none transition ${
+                  formik.touched.confirmed_sitemap_url && formik.errors.confirmed_sitemap_url
+                    ? "border-rose-500/60 focus:border-rose-500"
+                    : "border-white/10 focus:border-cyan-500"
+                }`}
               />
+              {formik.touched.confirmed_sitemap_url && formik.errors.confirmed_sitemap_url && (
+                <p className="mt-1 text-xs text-rose-400 font-medium">⚠️ {String(formik.errors.confirmed_sitemap_url)}</p>
+              )}
             </div>
+
             <div>
-              <label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-1.5">Security / Trust Center URL (Optional)</label>
+              <label htmlFor="confirmed_trust_security_url" className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-1.5">
+                Security / Trust Center URL (Optional)
+              </label>
               <input
+                id="confirmed_trust_security_url"
+                name="confirmed_trust_security_url"
                 type="text"
-                value={trustSecurityUrl}
-                onChange={(e) => setTrustSecurityUrl(e.target.value)}
-                placeholder="https://..."
-                className="w-full h-11 px-3 text-sm rounded-lg border border-white/10 bg-[#061420] text-slate-200 outline-none focus:border-cyan-500 transition"
+                value={formik.values.confirmed_trust_security_url}
+                onChange={formik.handleChange}
+                onBlur={formik.handleBlur}
+                aria-invalid={Boolean(formik.touched.confirmed_trust_security_url && formik.errors.confirmed_trust_security_url)}
+                placeholder="https://example.com/security"
+                className={`w-full h-11 px-3 text-sm rounded-lg border bg-[#061420] text-slate-200 outline-none transition ${
+                  formik.touched.confirmed_trust_security_url && formik.errors.confirmed_trust_security_url
+                    ? "border-rose-500/60 focus:border-rose-500"
+                    : "border-white/10 focus:border-cyan-500"
+                }`}
               />
+              {formik.touched.confirmed_trust_security_url && formik.errors.confirmed_trust_security_url && (
+                <p className="mt-1 text-xs text-rose-400 font-medium">⚠️ {String(formik.errors.confirmed_trust_security_url)}</p>
+              )}
             </div>
           </div>
         </div>
@@ -139,10 +222,15 @@ export function DpdpScanForm({ scanRecord }: DpdpScanFormProps) {
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-1.5">Application Type</label>
+              <label htmlFor="app_type" className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-1.5">
+                Application Type
+              </label>
               <select
-                value={appType}
-                onChange={(e) => setAppType(e.target.value)}
+                id="app_type"
+                name="app_type"
+                value={formik.values.app_type}
+                onChange={formik.handleChange}
+                onBlur={formik.handleBlur}
                 className="w-full h-11 px-3 text-sm rounded-lg border border-white/10 bg-[#061420] text-slate-200 outline-none focus:border-cyan-500 transition"
               >
                 <option value="SaaS">SaaS Application</option>
@@ -153,10 +241,15 @@ export function DpdpScanForm({ scanRecord }: DpdpScanFormProps) {
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-1.5">Data Retention Policy</label>
+              <label htmlFor="data_retention_period" className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-1.5">
+                Data Retention Policy
+              </label>
               <select
-                value={dataRetentionPeriod}
-                onChange={(e) => setDataRetentionPeriod(e.target.value)}
+                id="data_retention_period"
+                name="data_retention_period"
+                value={formik.values.data_retention_period}
+                onChange={formik.handleChange}
+                onBlur={formik.handleBlur}
                 className="w-full h-11 px-3 text-sm rounded-lg border border-white/10 bg-[#061420] text-slate-200 outline-none focus:border-cyan-500 transition"
               >
                 <option value="1 Month">1 Month</option>
@@ -174,13 +267,14 @@ export function DpdpScanForm({ scanRecord }: DpdpScanFormProps) {
           <div className="space-y-3 pt-2">
             <label className="relative flex items-start gap-3 cursor-pointer group">
               <input
+                name="processes_children_data"
                 type="checkbox"
-                checked={processesChildrenData}
-                onChange={(e) => setProcessesChildrenData(e.target.checked)}
+                checked={formik.values.processes_children_data}
+                onChange={formik.handleChange}
                 className="peer sr-only"
               />
               <span className="size-5 shrink-0 rounded border border-white/20 bg-[#061420] flex items-center justify-center text-cyan-400 peer-checked:border-cyan-400 peer-checked:bg-cyan-500/10 transition">
-                {processesChildrenData && "✓"}
+                {formik.values.processes_children_data && "✓"}
               </span>
               <div>
                 <span className="text-sm font-semibold text-slate-200 group-hover:text-white transition">Processes Children's Personal Data</span>
@@ -190,13 +284,14 @@ export function DpdpScanForm({ scanRecord }: DpdpScanFormProps) {
 
             <label className="relative flex items-start gap-3 cursor-pointer group">
               <input
+                name="processes_sensitive_data"
                 type="checkbox"
-                checked={processesSensitiveData}
-                onChange={(e) => setProcessesSensitiveData(e.target.checked)}
+                checked={formik.values.processes_sensitive_data}
+                onChange={formik.handleChange}
                 className="peer sr-only"
               />
               <span className="size-5 shrink-0 rounded border border-white/20 bg-[#061420] flex items-center justify-center text-cyan-400 peer-checked:border-cyan-400 peer-checked:bg-cyan-500/10 transition">
-                {processesSensitiveData && "✓"}
+                {formik.values.processes_sensitive_data && "✓"}
               </span>
               <div>
                 <span className="text-sm font-semibold text-slate-200 group-hover:text-white transition">Processes Sensitive Data</span>
@@ -206,13 +301,14 @@ export function DpdpScanForm({ scanRecord }: DpdpScanFormProps) {
 
             <label className="relative flex items-start gap-3 cursor-pointer group">
               <input
+                name="has_login_or_user_management"
                 type="checkbox"
-                checked={hasLoginOrUserManagement}
-                onChange={(e) => setHasLoginOrUserManagement(e.target.checked)}
+                checked={formik.values.has_login_or_user_management}
+                onChange={formik.handleChange}
                 className="peer sr-only"
               />
               <span className="size-5 shrink-0 rounded border border-white/20 bg-[#061420] flex items-center justify-center text-cyan-400 peer-checked:border-cyan-400 peer-checked:bg-cyan-500/10 transition">
-                {hasLoginOrUserManagement && "✓"}
+                {formik.values.has_login_or_user_management && "✓"}
               </span>
               <div>
                 <span className="text-sm font-semibold text-slate-200 group-hover:text-white transition">Has User Accounts or Login System</span>
@@ -221,27 +317,49 @@ export function DpdpScanForm({ scanRecord }: DpdpScanFormProps) {
             </label>
           </div>
 
-          {hasLoginOrUserManagement && (
+          {formik.values.has_login_or_user_management && (
             <div className="grid gap-4 sm:grid-cols-2 pt-2 animate-fadeIn">
               <div>
-                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-1.5">Login URL</label>
+                <label htmlFor="confirmed_login_url" className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-1.5">Login URL</label>
                 <input
+                  id="confirmed_login_url"
+                  name="confirmed_login_url"
                   type="text"
-                  value={loginUrl}
-                  onChange={(e) => setLoginUrl(e.target.value)}
+                  value={formik.values.confirmed_login_url}
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
+                  aria-invalid={Boolean(formik.touched.confirmed_login_url && formik.errors.confirmed_login_url)}
                   placeholder="https://.../login"
-                  className="w-full h-11 px-3 text-sm rounded-lg border border-white/10 bg-[#061420] text-slate-200 outline-none focus:border-cyan-500 transition"
+                  className={`w-full h-11 px-3 text-sm rounded-lg border bg-[#061420] text-slate-200 outline-none transition ${
+                    formik.touched.confirmed_login_url && formik.errors.confirmed_login_url
+                      ? "border-rose-500/60 focus:border-rose-500"
+                      : "border-white/10 focus:border-cyan-500"
+                  }`}
                 />
+                {formik.touched.confirmed_login_url && formik.errors.confirmed_login_url && (
+                  <p className="mt-1 text-xs text-rose-400 font-medium">⚠️ {String(formik.errors.confirmed_login_url)}</p>
+                )}
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-1.5">Registration URL</label>
+                <label htmlFor="confirmed_register_url" className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-1.5">Registration URL</label>
                 <input
+                  id="confirmed_register_url"
+                  name="confirmed_register_url"
                   type="text"
-                  value={registerUrl}
-                  onChange={(e) => setRegisterUrl(e.target.value)}
+                  value={formik.values.confirmed_register_url}
+                  onChange={formik.handleChange}
+                  onBlur={formik.handleBlur}
+                  aria-invalid={Boolean(formik.touched.confirmed_register_url && formik.errors.confirmed_register_url)}
                   placeholder="https://.../register"
-                  className="w-full h-11 px-3 text-sm rounded-lg border border-white/10 bg-[#061420] text-slate-200 outline-none focus:border-cyan-500 transition"
+                  className={`w-full h-11 px-3 text-sm rounded-lg border bg-[#061420] text-slate-200 outline-none transition ${
+                    formik.touched.confirmed_register_url && formik.errors.confirmed_register_url
+                      ? "border-rose-500/60 focus:border-rose-500"
+                      : "border-white/10 focus:border-cyan-500"
+                  }`}
                 />
+                {formik.touched.confirmed_register_url && formik.errors.confirmed_register_url && (
+                  <p className="mt-1 text-xs text-rose-400 font-medium">⚠️ {String(formik.errors.confirmed_register_url)}</p>
+                )}
               </div>
             </div>
           )}
@@ -256,11 +374,20 @@ export function DpdpScanForm({ scanRecord }: DpdpScanFormProps) {
         <div className="pt-4 border-t border-white/8 flex justify-end">
           <button
             type="submit"
-            disabled={startScanMutation.isPending}
-            className="w-full sm:w-auto h-12 px-6 rounded-xl bg-cyan-400 text-sm font-bold text-[#061420] hover:bg-cyan-300 transition flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
+            disabled={isProcessing}
+            className="w-full sm:w-auto h-12 px-6 rounded-xl bg-cyan-400 text-sm font-bold text-[#061420] hover:bg-cyan-300 transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shadow-lg shadow-cyan-400/20"
           >
-            <DpdpIcon name="scan" className="size-4" />
-            {startScanMutation.isPending ? "Starting Audit..." : "Initiate DPDP Compliance Scan"}
+            {isProcessing ? (
+              <>
+                <div className="size-4 rounded-full border-2 border-[#061420] border-t-transparent animate-spin" />
+                <span>Starting Audit...</span>
+              </>
+            ) : (
+              <>
+                <DpdpIcon name="scan" className="size-4" />
+                <span>Initiate DPDP Compliance Scan</span>
+              </>
+            )}
           </button>
         </div>
       </form>

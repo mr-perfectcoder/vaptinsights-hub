@@ -3,34 +3,41 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useFormik } from "formik";
 import { useDPDPDiscover } from "@/hooks/query-hooks/dpdp.query";
+import { homepageScanSchema, normalizeScanUrl } from "@/lib/validation/dpdp-scan.schema";
 import { dpdpCopy, dpdpFooterLinks } from "../constants/dpdp-homepage";
 import { DpdpHeader } from "./dpdp-header";
 import { DpdpIcon } from "./dpdp-icon";
 
 export function DpdpHomepage() {
   const router = useRouter();
-  const [urlInput, setUrlInput] = useState("");
-  const [errorMsg, setErrorMsg] = useState("");
+  const [apiErrorMsg, setApiErrorMsg] = useState("");
   const discoverMutation = useDPDPDiscover();
 
-  const handleScanSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!urlInput.trim()) {
-      setErrorMsg("Please enter a valid website URL");
-      return;
-    }
-    setErrorMsg("");
+  const formik = useFormik({
+    initialValues: { url: "" },
+    validationSchema: homepageScanSchema,
+    validateOnBlur: true,
+    validateOnChange: false,
+    onSubmit: (values, { setSubmitting }) => {
+      setApiErrorMsg("");
+      const normalizedUrl = normalizeScanUrl(values.url, "origin");
+      
+      discoverMutation.mutate(normalizedUrl, {
+        onSuccess: (data) => {
+          router.push(`/compliance/dpdp/${data.scan_id}`);
+        },
+        onError: (err) => {
+          setSubmitting(false);
+          setApiErrorMsg(err.message || "Failed to analyze URL. Please check if the host resolves.");
+        },
+      });
+    },
+  });
 
-    discoverMutation.mutate(urlInput.trim(), {
-      onSuccess: (data) => {
-        router.push(`/compliance/dpdp/${data.scan_id}`);
-      },
-      onError: (err) => {
-        setErrorMsg(err.message || "Failed to analyze URL. Please check if the host resolves.");
-      },
-    });
-  };
+  const isProcessing = formik.isSubmitting || discoverMutation.isPending;
+  const displayError = (formik.touched.url && formik.errors.url) || apiErrorMsg;
 
   const steps = [
     {
@@ -99,34 +106,55 @@ export function DpdpHomepage() {
               </p>
 
               {/* URL Input Form */}
-              <form onSubmit={handleScanSubmit} className="mx-auto mt-10 max-w-xl rounded-2xl border border-white/12 bg-[#0b2130]/90 p-3 text-left shadow-2xl shadow-black/40 sm:p-4 backdrop-blur-xl">
+              <form 
+                onSubmit={formik.handleSubmit} 
+                className="mx-auto mt-10 max-w-xl rounded-2xl border border-white/12 bg-[#0b2130]/90 p-3 text-left shadow-2xl shadow-black/40 sm:p-4 backdrop-blur-xl"
+              >
                 <label htmlFor="website-url" className="mb-2 block px-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
                   {dpdpCopy.hero.fieldLabel}
                 </label>
                 <div className="flex flex-col gap-3 sm:flex-row">
-                  <div className="flex flex-1 items-center gap-3 rounded-xl border border-white/10 bg-[#061420] px-3.5 py-1 text-slate-400 focus-within:border-cyan-400/50 transition">
+                  <div className={`flex flex-1 items-center gap-3 rounded-xl border bg-[#061420] px-3.5 py-1 text-slate-400 transition ${
+                    displayError ? "border-rose-500/60 focus-within:border-rose-500" : "border-white/10 focus-within:border-cyan-400/50"
+                  }`}>
                     <DpdpIcon name="search" className="size-4 shrink-0 text-cyan-400" />
                     <input 
                       id="website-url" 
+                      name="url"
                       type="text" 
-                      value={urlInput}
-                      onChange={(e) => setUrlInput(e.target.value)}
+                      value={formik.values.url}
+                      onChange={(e) => {
+                        setApiErrorMsg("");
+                        formik.handleChange(e);
+                      }}
+                      onBlur={formik.handleBlur}
+                      aria-invalid={Boolean(displayError)}
+                      aria-describedby={displayError ? "website-url-error" : undefined}
                       placeholder={dpdpCopy.hero.fieldPlaceholder} 
                       className="h-11 w-full bg-transparent text-sm text-white outline-none placeholder:text-slate-500 font-medium" 
                     />
                   </div>
                   <button 
                     type="submit" 
-                    disabled={discoverMutation.isPending}
-                    className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-cyan-400 px-6 text-sm font-bold text-[#061420] transition hover:bg-cyan-300 active:scale-[0.98] disabled:opacity-50 cursor-pointer shadow-lg shadow-cyan-400/20"
+                    disabled={isProcessing}
+                    className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-cyan-400 px-6 text-sm font-bold text-[#061420] transition hover:bg-cyan-300 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shadow-lg shadow-cyan-400/20 shrink-0"
                   >
-                    <DpdpIcon name="scan" className="size-4" />
-                    {discoverMutation.isPending ? "Analyzing..." : dpdpCopy.hero.scanAction}
+                    {isProcessing ? (
+                      <>
+                        <div className="size-4 rounded-full border-2 border-[#061420] border-t-transparent animate-spin" />
+                        <span>Analyzing...</span>
+                      </>
+                    ) : (
+                      <>
+                        <DpdpIcon name="scan" className="size-4" />
+                        <span>{dpdpCopy.hero.scanAction}</span>
+                      </>
+                    )}
                   </button>
                 </div>
-                {errorMsg && (
-                  <p className="mt-3 px-2 text-xs font-medium text-rose-400 flex items-center gap-1.5">
-                    <span>⚠️</span> {errorMsg}
+                {displayError && (
+                  <p id="website-url-error" role="alert" className="mt-3 px-2 text-xs font-medium text-rose-400 flex items-center gap-1.5 animate-fadeIn">
+                    <span>⚠️</span> {displayError}
                   </p>
                 )}
               </form>
