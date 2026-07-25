@@ -163,4 +163,19 @@ export const confirmationScanSchema = Yup.object().shape({
       ["SaaS", "E-commerce", "Mobile App", "Web Application"],
       "Please select a valid application type"
     ),
+
+  has_grievance_officer: Yup.boolean(),
+  grievance_officer_contact: Yup.string()
+    .transform((v) => (typeof v === "string" ? v.trim() : v))
+    .max(2048, "Contact URL/email is too long"),
+  has_dpa_with_processors: Yup.boolean(),
+  has_incident_response_plan: Yup.boolean(),
+  dpia_status: Yup.string().oneOf(
+    ["CONDUCTED", "NOT_CONDUCTED", "IN_PROGRESS", "NOT_APPLICABLE"],
+    "Please select a valid DPIA status"
+  ),
+  consent_manager_type: Yup.string().oneOf(
+    ["NONE", "CUSTOM_CMP", "REGISTERED_CONSENT_MANAGER"],
+    "Please select a valid Consent Manager type"
+  ),
 });

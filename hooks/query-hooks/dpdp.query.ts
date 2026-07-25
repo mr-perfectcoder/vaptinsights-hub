@@ -25,6 +25,12 @@ export interface StartScanPayload {
   processes_children_data: boolean;
   processes_sensitive_data: boolean;
   has_login_or_user_management: boolean;
+  has_grievance_officer?: boolean;
+  grievance_officer_contact?: string;
+  has_dpa_with_processors?: boolean;
+  has_incident_response_plan?: boolean;
+  dpia_status?: string;
+  consent_manager_type?: string;
 }
 
 export interface ScanStatusResponse {
@@ -47,6 +53,12 @@ export interface ScanStatusResponse {
   processes_children_data: boolean;
   processes_sensitive_data: boolean;
   has_login_or_user_management: boolean;
+  has_grievance_officer?: boolean;
+  grievance_officer_contact?: string;
+  has_dpa_with_processors?: boolean;
+  has_incident_response_plan?: boolean;
+  dpia_status?: string;
+  consent_manager_type?: string;
   ip: string;
   location: string;
   created_at: string;
