@@ -37,7 +37,16 @@ axiosInstance.interceptors.request.use(async (config) => {
   const method = (config.method || "get").toUpperCase();
   const body = method === "GET" || method === "HEAD" ? "" : requestBody(config.data);
   const expectedUserId = "anonymous";
-  const turnstileToken = config.headers["x-turnstile-token"] as string | undefined;
+  
+  let turnstileToken: string | undefined;
+  if (config.headers && typeof config.headers.get === "function") {
+    turnstileToken = config.headers.get("X-Turnstile-Token") as string | undefined;
+    config.headers.delete("X-Turnstile-Token");
+  } else if (config.headers) {
+    turnstileToken = config.headers["X-Turnstile-Token"] as string | undefined || config.headers["x-turnstile-token"] as string | undefined;
+    delete config.headers["X-Turnstile-Token"];
+    delete config.headers["x-turnstile-token"];
+  }
 
   const { keyPair, cert } = await getClientSessionCert(
     (browserPublicKey) => registerSessionKey(browserPublicKey, expectedUserId, turnstileToken),
