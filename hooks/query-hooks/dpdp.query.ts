@@ -18,9 +18,11 @@ export interface StartScanPayload {
   confirmed_terms_url: string;
   confirmed_sitemap_url: string;
   confirmed_trust_security_url: string;
+  confirmed_disclaimer_url: string;
   confirmed_login_url: string;
   confirmed_register_url: string;
   app_type: string;
+  app_description?: string;
   data_retention_period: string;
   processes_children_data: boolean;
   processes_sensitive_data: boolean;
@@ -31,6 +33,7 @@ export interface StartScanPayload {
   has_incident_response_plan?: boolean;
   dpia_status?: string;
   consent_manager_type?: string;
+  custom?: Array<{ field_name: string; value: string }>;
 }
 
 export interface ScanStatusResponse {
@@ -46,9 +49,11 @@ export interface ScanStatusResponse {
   confirmed_terms_url?: string;
   confirmed_sitemap_url?: string;
   confirmed_trust_security_url?: string;
+  confirmed_disclaimer_url?: string;
   confirmed_login_url?: string;
   confirmed_register_url?: string;
   app_type: string;
+  app_description?: string;
   data_retention_period?: string;
   processes_children_data: boolean;
   processes_sensitive_data: boolean;

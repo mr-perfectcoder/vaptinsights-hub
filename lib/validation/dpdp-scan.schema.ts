@@ -157,12 +157,22 @@ export const confirmationScanSchema = Yup.object().shape({
     .max(2048, "URL is too long")
     .test("is-valid-trust-url", "Please enter a valid Trust & Security URL", optionalUrlValidator),
 
+  confirmed_disclaimer_url: Yup.string()
+    .transform((v) => (typeof v === "string" ? v.trim() : v))
+    .max(2048, "URL is too long")
+    .test("is-valid-disclaimer-url", "Please enter a valid Disclaimer URL", optionalUrlValidator),
+
   app_type: Yup.string()
-    .required("Please select an application type")
-    .oneOf(
-      ["SaaS", "E-commerce", "Mobile App", "Web Application"],
-      "Please select a valid application type"
-    ),
+    .transform((v) => (typeof v === "string" ? v.trim() : v))
+    .required("Application type is required")
+    .min(2, "Application type must be at least 2 characters")
+    .max(100, "Application type is too long"),
+
+  app_description: Yup.string()
+    .transform((v) => (typeof v === "string" ? v.trim() : v))
+    .required("Application description is required")
+    .min(10, "Description must be at least 10 characters")
+    .max(1000, "Description cannot exceed 1000 characters"),
 
   has_grievance_officer: Yup.boolean(),
   grievance_officer_contact: Yup.string()
