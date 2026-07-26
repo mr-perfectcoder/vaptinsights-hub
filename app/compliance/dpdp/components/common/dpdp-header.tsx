@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { dpdpCopy } from "../constants/dpdp-homepage";
+import { dpdpCopy } from "../../constants/dpdp-homepage";
 import { DpdpIcon } from "./dpdp-icon";
 
 function DpdpBrand() {

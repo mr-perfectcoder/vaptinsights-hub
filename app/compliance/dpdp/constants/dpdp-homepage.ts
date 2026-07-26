@@ -23,13 +23,13 @@ export const dpdpCopy = {
   ],
   hero: {
     eyebrow: "FREE TECHNICAL READINESS ASSESSMENT",
-    title: "India's Free DPDP Technical Readiness Center",
+    title: "India's DPDP Technical Readiness Scanner",
     description:
       "Evaluate your website's technical safeguards, understand DPDP requirements, and improve your security posture.",
     fieldLabel: "Website URL",
     fieldPlaceholder: "https://example.com",
     scanAction: "Scan Website",
-    proofPoints: ["No Login Required", "Free Forever", "Technical Assessment Only"],
+    proofPoints: ["No Login Required", "Free Forever"],
   },
   tools: {
     eyebrow: "FREE TOOLS",

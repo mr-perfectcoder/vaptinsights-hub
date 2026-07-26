@@ -3,11 +3,11 @@
 import React from "react";
 import Link from "next/link";
 import { useDPDPGetScan } from "@/hooks/query-hooks/dpdp.query";
-import { DpdpHeader } from "../components/dpdp-header";
-import { DpdpIcon } from "../components/dpdp-icon";
-import { DpdpScanForm } from "../components/dpdp-scan-form";
-import { DpdpProgress } from "../components/dpdp-progress";
-import { DpdpReportDisplay } from "../components/dpdp-report-display";
+import { DpdpHeader } from "../components/common/dpdp-header";
+import { DpdpIcon } from "../components/common/dpdp-icon";
+import { DpdpScanForm } from "../components/form/dpdp-scan-form";
+import { DpdpProgress } from "../components/common/dpdp-progress";
+import { DpdpReportDisplay } from "../components/report/dpdp-report-display";
 import { dpdpFooterLinks, dpdpCopy } from "../constants/dpdp-homepage";
 
 interface ScanPageClientProps {
@@ -16,7 +16,6 @@ interface ScanPageClientProps {
 
 export function ScanPageClient({ scanID }: ScanPageClientProps) {
   const { data: scanRecord, isLoading, error, refetch } = useDPDPGetScan(scanID);
-  console.log("ScanPageClient: scanRecord", scanRecord?.stage);
 
   const renderContent = () => {
     if (isLoading) {
@@ -110,44 +109,52 @@ export function ScanPageClient({ scanID }: ScanPageClientProps) {
         <div className="mx-auto max-w-7xl px-5 py-12 sm:px-8 lg:px-10">
           {/* Page heading + metadata */}
           {scanRecord && (
-            <div className="mb-10 space-y-4">
-              {/* Report title */}
+            <div className="mb-8 space-y-3">
               <div>
-                <p className="text-[10px] font-black uppercase tracking-[0.25em] text-cyan-500/70 mb-1">DPDPA 2023 Compliance Audit</p>
+                <p className="text-xs font-black uppercase tracking-[0.25em] text-cyan-500/70 mb-1">DPDPA 2023 Compliance Audit</p>
                 <h1 className="text-xl sm:text-2xl font-extrabold text-white tracking-tight leading-tight">
                   Security &amp; Privacy Report
                 </h1>
               </div>
-              {/* Metadata pill strip */}
               <div className="inline-flex flex-wrap items-center gap-2 bg-[#07192a]/60 border border-white/5 rounded-xl px-4 py-2.5 backdrop-blur-sm">
-                {/* Domain */}
                 <div className="flex items-center gap-1.5">
                   <svg className="size-3 text-slate-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064" />
                   </svg>
-                  <span className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">Domain</span>
+                  <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Domain</span>
                   <span className="text-xs font-mono text-slate-200 truncate max-w-[180px] sm:max-w-none">{scanRecord.domain}</span>
                 </div>
                 <span className="text-white/10">·</span>
-                {/* Scan date */}
                 <div className="flex items-center gap-1.5">
                   <svg className="size-3 text-slate-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
-                  <span className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">Scanned</span>
+                  <span className="text-xs text-slate-500 font-semibold uppercase tracking-wider">Scanned</span>
                   <span className="text-xs font-mono text-slate-200">
                     {new Date(scanRecord.created_at).toLocaleDateString("en-US", {
-                      year: "numeric",
-                      month: "short",
-                      day: "2-digit"
+                      year: "numeric", month: "short", day: "2-digit"
                     })}
                   </span>
                 </div>
+                {scanRecord.stage && (
+                  <>
+                    <span className="text-white/10">·</span>
+                    <div className="flex items-center gap-1.5">
+                      <span className={`size-1.5 rounded-full ${
+                        scanRecord.stage === "COMPLETED" ? "bg-emerald-400" :
+                        scanRecord.stage === "CONFIRMATION_PENDING" || scanRecord.stage === "INIT" ? "bg-amber-400 animate-pulse" :
+                        "bg-cyan-400 animate-pulse"
+                      }`} />
+                      <span className="text-xs text-slate-400 font-mono font-semibold uppercase tracking-wider">{scanRecord.stage.replace(/_/g, " ")}</span>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           )}
 
           {renderContent()}
+
         </div>
       </div>
 
