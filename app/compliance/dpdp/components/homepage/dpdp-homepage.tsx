@@ -76,8 +76,13 @@ export function DpdpHomepage() {
     validateOnChange: false,
     onSubmit: (values, { setSubmitting }) => {
       setApiErrorMsg("");
+      if (!turnstileToken) {
+        setApiErrorMsg("Please complete the security challenge.");
+        setSubmitting(false);
+        return;
+      }
       const normalizedUrl = normalizeScanUrl(values.url, "origin");
-      discoverMutation.mutate(normalizedUrl, {
+      discoverMutation.mutate({ url: normalizedUrl, turnstileToken }, {
         onSuccess: (data) => router.push(`/compliance/dpdp/${data.scan_id}`),
         onError: (err) => {
           setSubmitting(false);

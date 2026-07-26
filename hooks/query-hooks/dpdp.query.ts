@@ -74,10 +74,11 @@ export interface ScanStatusResponse {
 }
 
 export function useDPDPDiscover() {
-  return useMutation<DiscoverResponse, Error, string>({
-    mutationFn: async (url: string) => {
+  return useMutation<DiscoverResponse, Error, { url: string; turnstileToken?: string }>({
+    mutationFn: async ({ url, turnstileToken }) => {
       const { data } = await axiosInstance.get(`/compliance/api/dpdp/discover`, {
         params: { url },
+        headers: turnstileToken ? { "X-Turnstile-Token": turnstileToken } : {},
       });
       return data;
     },
