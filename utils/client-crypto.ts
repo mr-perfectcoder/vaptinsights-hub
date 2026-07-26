@@ -13,6 +13,12 @@ function bufferToHex(buffer: ArrayBuffer) {
     .join("");
 }
 
+function hexToBuffer(hex: string) {
+  const match = hex.match(/.{1,2}/g);
+  if (!match) return new Uint8Array(0).buffer;
+  return new Uint8Array(match.map(byte => parseInt(byte, 16))).buffer;
+}
+
 export async function getClientSessionCert(
   registerAction: (publicKeyHex: string) => Promise<SessionCertificate | null>,
   expectedUserId = "anonymous"
@@ -21,6 +27,7 @@ export async function getClientSessionCert(
     return { keyPair: null, cert: null };
   }
 
+  // Check memory cache
   if (
     cachedKeyPair &&
     cachedCert &&
@@ -28,6 +35,36 @@ export async function getClientSessionCert(
     cachedCert.expiry > Math.floor(Date.now() / 1000) + 10
   ) {
     return { keyPair: cachedKeyPair, cert: cachedCert };
+  }
+
+  // Check localStorage cache
+  try {
+    const cachedStr = localStorage.getItem(`vapt_session_cert_${expectedUserId}`);
+    if (cachedStr) {
+      const cached = JSON.parse(cachedStr);
+      if (cached.cert && cached.cert.expiry > Math.floor(Date.now() / 1000) + 10) {
+        const privateKey = await window.crypto.subtle.importKey(
+          "pkcs8",
+          hexToBuffer(cached.privHex),
+          { name: "Ed25519" },
+          true,
+          ["sign"]
+        );
+        const publicKey = await window.crypto.subtle.importKey(
+          "spki",
+          hexToBuffer(cached.pubHex),
+          { name: "Ed25519" },
+          true,
+          ["verify"]
+        );
+        cachedKeyPair = { publicKey, privateKey };
+        cachedCert = cached.cert;
+        return { keyPair: cachedKeyPair, cert: cachedCert };
+      }
+    }
+  } catch (e) {
+    // Ignore cache load errors and fall through to generate new key
+    console.warn("Failed to load cached session cert:", e);
   }
 
   if (registrationPromise) {
@@ -54,6 +91,20 @@ export async function getClientSessionCert(
 
       cachedKeyPair = keyPair;
       cachedCert = cert;
+
+      // Save to localStorage
+      try {
+        const privHex = bufferToHex(await window.crypto.subtle.exportKey("pkcs8", keyPair.privateKey));
+        const pubHex = bufferToHex(await window.crypto.subtle.exportKey("spki", keyPair.publicKey));
+        localStorage.setItem(`vapt_session_cert_${expectedUserId}`, JSON.stringify({
+          cert,
+          privHex,
+          pubHex,
+        }));
+      } catch (e) {
+        console.warn("Failed to cache session cert to localStorage:", e);
+      }
+
       return { keyPair, cert };
     } catch (error) {
       console.error("Hub Connect session key registration failed:", error);
