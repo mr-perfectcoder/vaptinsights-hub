@@ -98,14 +98,14 @@ export function useDPDPStartScan() {
   });
 }
 
-export function useDPDPGetScan(scanID: string) {
+export function useDPDPGetScan(scanID: string, enabled = true) {
   return useQuery<ScanStatusResponse, Error>({
     queryKey: dpdpKeys.scan(scanID),
     queryFn: async () => {
       const { data } = await axiosInstance.get(`/compliance/api/dpdp/scan/${scanID}`);
       return data;
     },
-    enabled: !!scanID,
+    enabled: !!scanID && enabled,
     refetchInterval: (query) => {
       const stage = query?.state?.data?.stage;
       if (!stage || stage === "COMPLETED" || stage.startsWith("ERROR_")) {

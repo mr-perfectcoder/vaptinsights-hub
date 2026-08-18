@@ -3,6 +3,7 @@
 import axios from "axios";
 import { getClientSessionCert, signRequestClientSide } from "@/utils/client-crypto";
 import { registerSessionKey } from "@/utils/secure-api-actions";
+import { getGlobalTurnstileToken } from "@/lib/turnstile-store";
 
 export const axiosInstance = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000",
@@ -46,6 +47,12 @@ axiosInstance.interceptors.request.use(async (config) => {
     turnstileToken = config.headers["X-Turnstile-Token"] as string | undefined || config.headers["x-turnstile-token"] as string | undefined;
     delete config.headers["X-Turnstile-Token"];
     delete config.headers["x-turnstile-token"];
+  }
+
+  // Fall back to the module-level store (set by the invisible Turnstile widget
+  // on pages like the shared scan-result page that don't show a form widget).
+  if (!turnstileToken) {
+    turnstileToken = getGlobalTurnstileToken();
   }
 
   const { keyPair, cert } = await getClientSessionCert(
