@@ -13,6 +13,8 @@ interface TurnstileOptions {
   "error-callback"?: (error: string) => void;
   retry?: "auto" | "never";
   theme?: "dark" | "light";
+  size?: "normal" | "compact" | "invisible";
+  execution?: "render" | "execute";
 }
 
 declare global {
@@ -23,9 +25,11 @@ declare global {
 
 interface TurnstileProps {
   onVerify: (token: string) => void;
+  /** When true, renders an invisible widget that auto-executes silently */
+  invisible?: boolean;
 }
 
-const Turnstile = ({ onVerify }: TurnstileProps) => {
+const Turnstile = ({ onVerify, invisible = false }: TurnstileProps) => {
   const turnstileRef = useRef<HTMLDivElement>(null);
   const widgetIdRef = useRef<string | null>(null);
   const scriptRef = useRef<HTMLScriptElement | null>(null);
@@ -56,6 +60,7 @@ const Turnstile = ({ onVerify }: TurnstileProps) => {
           },
           retry: "auto",
           theme: "dark",
+          ...(invisible ? { size: "invisible" } : {}),
         });
       } catch (error) {
         console.error("Turnstile render error:", error);
@@ -92,7 +97,13 @@ const Turnstile = ({ onVerify }: TurnstileProps) => {
     };
   }, []);
 
-  return <div ref={turnstileRef} className="inline-flex justify-center my-3" />;
+  return (
+    <div
+      ref={turnstileRef}
+      className={invisible ? "hidden" : "inline-flex justify-center my-3"}
+      aria-hidden={invisible}
+    />
+  );
 };
 
 export default Turnstile;

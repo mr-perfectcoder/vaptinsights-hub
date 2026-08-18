@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 import { useDPDPGetScan } from "@/hooks/query-hooks/dpdp.query";
 import { DpdpHeader } from "../components/common/dpdp-header";
@@ -9,16 +9,36 @@ import { DpdpScanForm } from "../components/form/dpdp-scan-form";
 import { DpdpProgress } from "../components/common/dpdp-progress";
 import { DpdpReportDisplay } from "../components/report/dpdp-report-display";
 import { dpdpFooterLinks, dpdpCopy } from "../constants/dpdp-homepage";
+import Turnstile from "@/components/common/Turnstile";
+import { setGlobalTurnstileToken } from "@/lib/turnstile-store";
 
 interface ScanPageClientProps {
   scanID: string;
 }
 
 export function ScanPageClient({ scanID }: ScanPageClientProps) {
-  const { data: scanRecord, isLoading, error, refetch } = useDPDPGetScan(scanID);
+  const [turnstileReady, setTurnstileReady] = useState(false);
+  const [turnstileTimedOut, setTurnstileTimedOut] = useState(false);
+
+  // Guard: if the invisible challenge doesn't complete in 8s (blocked by
+  // browser extension, network, etc.), show a graceful error instead of
+  // an infinite spinner.
+  React.useEffect(() => {
+    const timer = setTimeout(() => {
+      if (!turnstileReady) setTurnstileTimedOut(true);
+    }, 8000);
+    return () => clearTimeout(timer);
+  }, [turnstileReady]);
+
+  const { data: scanRecord, isLoading, error, refetch } = useDPDPGetScan(
+    scanID,
+    turnstileReady,
+  );
 
   const renderContent = () => {
-    if (isLoading) {
+    // Turnstile hasn't verified yet — query is intentionally disabled.
+    // Show spinner instead of falling through to the error UI.
+    if (!turnstileReady || isLoading) {
       return (
         <div className="mx-auto max-w-md text-center py-20">
           <div className="size-12 mx-auto rounded-full border-2 border-t-cyan-400 border-white/10 animate-spin" />
@@ -27,6 +47,7 @@ export function ScanPageClient({ scanID }: ScanPageClientProps) {
       );
     }
 
+    // Only show the error UI once the query has actually fired and failed.
     if (error || !scanRecord) {
       return (
         <div className="mx-auto max-w-md rounded-2xl border border-rose-500/20 bg-rose-500/10 p-6 text-center">
@@ -104,6 +125,32 @@ export function ScanPageClient({ scanID }: ScanPageClientProps) {
 
   return (
     <main className="min-h-screen bg-[#061420] text-slate-100 flex flex-col justify-between">
+      {/* Invisible Turnstile: bootstraps the session cert silently for shared-link visitors */}
+      <Turnstile
+        invisible
+        onVerify={(token) => {
+          setGlobalTurnstileToken(token);
+          setTurnstileReady(true);
+        }}
+      />
+      {/* Timeout fallback: challenge blocked (e.g. VPN / strict browser) */}
+      {turnstileTimedOut && !turnstileReady && (
+        <div className="min-h-screen flex items-center justify-center p-8">
+          <div className="mx-auto max-w-sm rounded-2xl border border-amber-500/20 bg-amber-500/10 p-6 text-center">
+            <span className="text-3xl">🔒</span>
+            <h2 className="mt-4 text-base font-bold text-white">Security Check Failed</h2>
+            <p className="mt-2 text-xs text-amber-300">
+              The security verification could not be completed. This may be caused by a VPN, ad-blocker, or strict browser settings blocking Cloudflare.
+            </p>
+            <button
+              onClick={() => window.location.reload()}
+              className="mt-5 px-4 py-2 rounded-lg bg-white/10 text-xs font-semibold text-white hover:bg-white/15 transition cursor-pointer"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      )}
       <div>
         <DpdpHeader minimal />
         <div className="mx-auto max-w-7xl px-5 py-12 sm:px-8 lg:px-10">
